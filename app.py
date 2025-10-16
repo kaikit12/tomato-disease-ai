@@ -21,32 +21,30 @@ except Exception as e:
     GROQ_API_KEY = ""
     GOOGLE_API_KEY = ""
 
-# Initialize Groq client với error handling
+# Initialize Groq client với silent error handling
 groq_client = None
 if GROQ_API_KEY and GROQ_API_KEY.strip():
     try:
-        # Fix for newer Groq versions - use simpler initialization
+        # Method 1: Environment variable approach
         import os
         os.environ['GROQ_API_KEY'] = GROQ_API_KEY.strip()
         groq_client = Groq()
-    except Exception as e:
+    except Exception:
         try:
-            # Fallback to old initialization method
+            # Method 2: Direct API key approach
             groq_client = Groq(api_key=GROQ_API_KEY.strip())
-        except Exception as e2:
-            st.sidebar.error(f"❌ Lỗi Groq: {e2}")
+        except Exception:
+            # Silent fail - just set to None
             groq_client = None
-else:
-    st.sidebar.warning("⚠️ Groq API chưa cấu hình")
 
-# Initialize Google AI với error handling
+# Initialize Google AI với silent error handling
+google_ai_available = False
 if GOOGLE_API_KEY and GOOGLE_API_KEY.strip():
     try:
         genai.configure(api_key=GOOGLE_API_KEY.strip())
-    except Exception as e:
-        st.sidebar.error(f"❌ Lỗi Google AI: {e}")
-else:
-    st.sidebar.warning("⚠️ Google API chưa cấu hình")
+        google_ai_available = True
+    except Exception:
+        google_ai_available = False
 
 DISEASE_LIBRARY = {
     'Bệnh: Nhện đỏ (spider mites)': {
@@ -164,7 +162,7 @@ def draw_result(image_file, result_text, confidence):
 @st.cache_data
 def get_treatment_suggestion(disease_name: str) -> str:
     if not groq_client:
-        return "⚠️ Groq API chưa được cấu hình hoặc có lỗi kết nối."
+        return "⚠️ Tính năng tư vấn AI hiện chưa khả dụng. Vui lòng thử lại sau."
     
     if disease_name == 'Lá khỏe mạnh':
         return "✅ Tuyệt vời! Lá cây của bạn khỏe mạnh."
@@ -181,11 +179,11 @@ def get_treatment_suggestion(disease_name: str) -> str:
         )
         return response.choices[0].message.content
     except Exception as e:
-        return f"❌ Lỗi API tư vấn: {str(e)}"
+        return f"❌ Tính năng tư vấn tạm thời không khả dụng. Vui lòng thử lại sau."
 
 def get_vision_ai_check(image_bytes: bytes) -> str:
-    if not GOOGLE_API_KEY or not GOOGLE_API_KEY.strip():
-        return "⚠️ Google API Key chưa được cấu hình."
+    if not google_ai_available:
+        return "⚠️ Google Gemini Vision hiện chưa khả dụng. Vui lòng thử lại sau."
     
     try:
         img = Image.open(io.BytesIO(image_bytes))
@@ -202,7 +200,7 @@ def get_vision_ai_check(image_bytes: bytes) -> str:
         response = model_ai.generate_content(prompt_parts)
         return f"**Đánh giá từ Google Gemini Vision:**\n\n" + response.text
     except Exception as e:
-        return f"❌ Lỗi khi gọi API Google Gemini Vision: {str(e)}"
+        return f"❌ Lỗi khi phân tích ảnh: Vui lòng thử lại sau."
 
 # UI
 st.title("🍅 Trợ lý Cà chua AI")
@@ -217,6 +215,14 @@ with st.sidebar:
         st.subheader(selected_disease)
         st.markdown(f"**Mô tả:** {info['description']}")
         st.markdown(f"**Triệu chứng:**\n{info['symptoms']}")
+    
+    st.markdown("---")
+    
+    # Status indicators (subtle)
+    st.caption("🔄 Trạng thái dịch vụ:")
+    st.caption("🧠 AI Phân loại: ✅ Hoạt động")
+    st.caption(f"💬 Tư vấn AI: {'✅ Sẵn sàng' if groq_client else '⏸️ Tạm nghỉ'}")
+    st.caption(f"👁️ Gemini Vision: {'✅ Sẵn sàng' if google_ai_available else '⏸️ Tạm nghỉ'}")
     
     st.markdown("---")
     st.header("📜 Lịch sử nhận diện")
