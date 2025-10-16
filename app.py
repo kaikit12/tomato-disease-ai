@@ -12,20 +12,34 @@ import google.generativeai as genai
 
 st.set_page_config(page_title="Trợ lý Cà chua AI", page_icon="🍅", layout="wide")
 
-# API Keys từ Streamlit Secrets
-GROQ_API_KEY = st.secrets.get("GROQ_API_KEY", "")
-GOOGLE_API_KEY = st.secrets.get("GOOGLE_API_KEY", "")
+# API Keys từ Streamlit Secrets với error handling
+try:
+    GROQ_API_KEY = st.secrets.get("GROQ_API_KEY", "")
+    GOOGLE_API_KEY = st.secrets.get("GOOGLE_API_KEY", "")
+except Exception as e:
+    st.error(f"❌ Lỗi đọc secrets: {e}")
+    GROQ_API_KEY = ""
+    GOOGLE_API_KEY = ""
 
-if GROQ_API_KEY:
-    groq_client = Groq(api_key=GROQ_API_KEY)
+# Initialize Groq client với error handling
+groq_client = None
+if GROQ_API_KEY and GROQ_API_KEY.strip():
+    try:
+        groq_client = Groq(api_key=GROQ_API_KEY.strip())
+    except Exception as e:
+        st.sidebar.error(f"❌ Lỗi Groq: {e}")
+        groq_client = None
 else:
-    groq_client = None
-    st.warning("⚠️ Groq API Key chưa được cấu hình. Tính năng tư vấn sẽ không hoạt động.")
+    st.sidebar.warning("⚠️ Groq API chưa cấu hình")
 
-if GOOGLE_API_KEY:
-    genai.configure(api_key=GOOGLE_API_KEY)
+# Initialize Google AI với error handling
+if GOOGLE_API_KEY and GOOGLE_API_KEY.strip():
+    try:
+        genai.configure(api_key=GOOGLE_API_KEY.strip())
+    except Exception as e:
+        st.sidebar.error(f"❌ Lỗi Google AI: {e}")
 else:
-    st.warning("⚠️ Google API Key chưa được cấu hình. Tính năng kiểm tra chéo sẽ không hoạt động.")
+    st.sidebar.warning("⚠️ Google API chưa cấu hình")
 
 DISEASE_LIBRARY = {
     'Bệnh: Nhện đỏ (spider mites)': {
@@ -143,7 +157,7 @@ def draw_result(image_file, result_text, confidence):
 @st.cache_data
 def get_treatment_suggestion(disease_name: str) -> str:
     if not groq_client:
-        return "⚠️ Vui lòng cung cấp Groq API Key để dùng tính năng này."
+        return "⚠️ Groq API chưa được cấu hình hoặc có lỗi kết nối."
     
     if disease_name == 'Lá khỏe mạnh':
         return "✅ Tuyệt vời! Lá cây của bạn khỏe mạnh."
@@ -160,11 +174,11 @@ def get_treatment_suggestion(disease_name: str) -> str:
         )
         return response.choices[0].message.content
     except Exception as e:
-        return f"❌ Lỗi API tư vấn: {e}"
+        return f"❌ Lỗi API tư vấn: {str(e)}"
 
 def get_vision_ai_check(image_bytes: bytes) -> str:
-    if not GOOGLE_API_KEY:
-        return "⚠️ Vui lòng cung cấp Google API Key để sử dụng tính năng này."
+    if not GOOGLE_API_KEY or not GOOGLE_API_KEY.strip():
+        return "⚠️ Google API Key chưa được cấu hình."
     
     try:
         img = Image.open(io.BytesIO(image_bytes))
@@ -181,7 +195,7 @@ def get_vision_ai_check(image_bytes: bytes) -> str:
         response = model_ai.generate_content(prompt_parts)
         return f"**Đánh giá từ Google Gemini Vision:**\n\n" + response.text
     except Exception as e:
-        return f"❌ Lỗi khi gọi API Google Gemini Vision: {e}"
+        return f"❌ Lỗi khi gọi API Google Gemini Vision: {str(e)}"
 
 # UI
 st.title("🍅 Trợ lý Cà chua AI")
