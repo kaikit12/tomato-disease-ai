@@ -208,7 +208,11 @@ st.markdown("*Phân loại bệnh cà chua bằng AI - Phiên bản Production*"
 
 with st.sidebar:
     st.header("📖 Thư viện bệnh học")
-    selected_disease = st.selectbox("Tra cứu thông tin bệnh:", list(DISEASE_LIBRARY.keys()))
+    selected_disease = st.selectbox(
+        "Tra cứu thông tin bệnh:", 
+        list(DISEASE_LIBRARY.keys()),
+        key="disease_selector"
+    )
     
     if selected_disease:
         info = DISEASE_LIBRARY[selected_disease]
@@ -248,12 +252,20 @@ col1, col2 = st.columns([2, 3])
 
 with col1:
     st.subheader("① Tải hoặc Chụp ảnh")
-    uploaded_file = st.file_uploader("Tải ảnh từ thiết bị:", type=["jpg", "jpeg", "png"])
-    camera_file = st.camera_input("Chụp ảnh từ camera:")
+    uploaded_file = st.file_uploader(
+        "Tải ảnh từ thiết bị:", 
+        type=["jpg", "jpeg", "png"],
+        key="image_uploader"
+    )
+    camera_file = st.camera_input("Chụp ảnh từ camera:", key="camera_input")
     
     image_to_process = camera_file or uploaded_file
     if image_to_process:
-        st.image(image_to_process, caption="Ảnh được chọn", use_container_width=True)
+        # Compatibility for different Streamlit versions
+        try:
+            st.image(image_to_process, caption="Ảnh được chọn", use_container_width=True)
+        except TypeError:
+            st.image(image_to_process, caption="Ảnh được chọn", width=300)
 
 with col2:
     st.subheader("② Xem kết quả phân tích")
@@ -299,13 +311,13 @@ with col2:
         
         with tabs[2]:
             st.info("Nhận gợi ý chi tiết từ AI LLaMA 3.1 qua Groq.")
-            if st.button("💡 Nhận gợi ý trị bệnh"):
+            if st.button("💡 Nhận gợi ý trị bệnh", key="groq_advice_btn"):
                 with st.spinner("🤖 Groq AI đang soạn thảo..."):
                     st.markdown(get_treatment_suggestion(predicted_class))
         
         with tabs[3]:
             st.info("Sử dụng Google Gemini Vision để có thêm góc nhìn thứ hai.")
-            if st.button("🔬 Bắt đầu kiểm tra chéo với Gemini"):
+            if st.button("🔬 Bắt đầu kiểm tra chéo với Gemini", key="gemini_check_btn"):
                 with st.spinner("🛰️ Gemini Vision đang phân tích ảnh..."):
                     st.markdown(get_vision_ai_check(image_to_process.getvalue()))
     
