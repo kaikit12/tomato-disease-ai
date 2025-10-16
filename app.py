@@ -145,18 +145,46 @@ def draw_result(image_file, result_text, confidence):
     image = Image.open(image_file).convert("RGB")
     draw = ImageDraw.Draw(image)
     
-    try:
-        font = ImageFont.truetype("arial.ttf", 30)
-    except IOError:
+    # Try to load a font that supports Unicode/Vietnamese
+    font = None
+    font_paths = [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",  # Linux
+        "/System/Library/Fonts/Arial.ttf",  # macOS
+        "arial.ttf",  # Windows
+        "/usr/share/fonts/TTF/arial.ttf"  # Some Linux distributions
+    ]
+    
+    for font_path in font_paths:
+        try:
+            font = ImageFont.truetype(font_path, 30)
+            break
+        except (IOError, OSError):
+            continue
+    
+    if font is None:
         font = ImageFont.load_default()
     
-    text = f"{result_text} ({confidence:.2f}%)"
-    text_bbox = draw.textbbox((0, 0), text, font=font)
-    text_width = text_bbox[2] - text_bbox[0]
-    text_height = text_bbox[3] - text_bbox[1]
+    # Safe text handling for Unicode
+    try:
+        text = f"{result_text} ({confidence:.2f}%)"
+        # Test if we can render this text
+        test_bbox = draw.textbbox((0, 0), text, font=font)
+    except (UnicodeEncodeError, UnicodeDecodeError, OSError):
+        # Fallback to ASCII-safe text
+        safe_result = result_text.encode('ascii', 'ignore').decode('ascii')
+        text = f"{safe_result} ({confidence:.2f}%)"
     
-    draw.rectangle([(10, 10), (10 + text_width + 20, 10 + text_height + 20)], fill="rgba(0,0,0,128)")
-    draw.text((20, 20), text, fill="white", font=font)
+    try:
+        text_bbox = draw.textbbox((0, 0), text, font=font)
+        text_width = text_bbox[2] - text_bbox[0]
+        text_height = text_bbox[3] - text_bbox[1]
+        
+        draw.rectangle([(10, 10), (10 + text_width + 20, 10 + text_height + 20)], fill="rgba(0,0,0,128)")
+        draw.text((20, 20), text, fill="white", font=font)
+    except Exception as e:
+        # Ultimate fallback: simple text without special formatting
+        draw.text((20, 20), f"Confidence: {confidence:.2f}%", fill="white", font=font)
+    
     return image
 
 @st.cache_data
@@ -273,7 +301,8 @@ with col2:
     if image_to_process and model is not None:
         with st.spinner("⏳ AI đang phân tích, vui lòng chờ..."):
             predicted_class, confidence, probabilities = predict_image(image_to_process)
-            result_image = draw_result(image_to_process, predicted_class, confidence)
+            # Skip image annotation to avoid Unicode errors
+            # result_image = draw_result(image_to_process, predicted_class, confidence)
         
         current_time = datetime.now().strftime("%H:%M:%S")
         new_record = {
@@ -301,13 +330,13 @@ with col2:
                 st.write(f"{cls}: {prob*100:.2f}%")
                 st.progress(float(prob))
             
-            buf = io.BytesIO()
-            result_image.save(buf, format="PNG")
-            st.download_button("⬇️ Tải ảnh kết quả", buf.getvalue(), "ket_qua.png", "image/png")
+            # Skip download and comparison due to Unicode font issues
+            st.info("💡 Tải ảnh kết quả tạm thời bị vô hiệu hóa để tránh lỗi font Unicode")
         
         with tabs[1]:
-            st.markdown("Kéo thanh trượt để so sánh.")
-            image_comparison(Image.open(image_to_process), result_image, "Ảnh gốc", "Ảnh có chẩn đoán")
+            st.markdown("**So sánh ảnh gốc:**")
+            st.image(image_to_process, caption="Ảnh gốc", width=300)
+            st.success(f"✅ Chẩn đoán: **{predicted_class}** ({confidence:.2f}%)")
         
         with tabs[2]:
             st.info("Nhận gợi ý chi tiết từ AI LLaMA 3.1 qua Groq.")
