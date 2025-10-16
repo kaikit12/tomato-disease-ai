@@ -256,6 +256,36 @@ with st.sidebar:
     st.caption(f"💬 Tư vấn AI: {'✅ Sẵn sàng' if groq_client else '⏸️ Tạm nghỉ'}")
     st.caption(f"👁️ Gemini Vision: {'✅ Sẵn sàng' if google_ai_available else '⏸️ Tạm nghỉ'}")
     
+    # Debug info cho admin
+    if st.sidebar.button("🔧 Debug API Status"):
+        st.sidebar.write("**Groq API Status:**")
+        st.sidebar.write(f"- API Key có: {bool(GROQ_API_KEY and GROQ_API_KEY.strip())}")
+        st.sidebar.write(f"- Client khởi tạo: {groq_client is not None}")
+        if GROQ_API_KEY:
+            st.sidebar.write(f"- Key preview: {GROQ_API_KEY[:10]}...")
+        
+        st.sidebar.write("**Google API Status:**") 
+        st.sidebar.write(f"- API Key có: {bool(GOOGLE_API_KEY and GOOGLE_API_KEY.strip())}")
+        st.sidebar.write(f"- Client sẵn sàng: {google_ai_available}")
+        if GOOGLE_API_KEY:
+            st.sidebar.write(f"- Key preview: {GOOGLE_API_KEY[:10]}...")
+            
+        # Test Groq connection
+        if st.sidebar.button("🧪 Test Groq Connection"):
+            if groq_client:
+                try:
+                    test_response = groq_client.chat.completions.create(
+                        model="llama-3.1-8b-instant",
+                        messages=[{"role": "user", "content": "Hello, test connection"}],
+                        max_tokens=10
+                    )
+                    st.sidebar.success("✅ Groq API hoạt động bình thường!")
+                    st.sidebar.write(f"Response: {test_response.choices[0].message.content}")
+                except Exception as e:
+                    st.sidebar.error(f"❌ Lỗi Groq API: {str(e)}")
+            else:
+                st.sidebar.error("❌ Groq client chưa được khởi tạo")
+    
     st.markdown("---")
     st.header("📜 Lịch sử nhận diện")
     
