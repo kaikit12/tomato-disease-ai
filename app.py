@@ -25,10 +25,17 @@ except Exception as e:
 groq_client = None
 if GROQ_API_KEY and GROQ_API_KEY.strip():
     try:
-        groq_client = Groq(api_key=GROQ_API_KEY.strip())
+        # Fix for newer Groq versions - use simpler initialization
+        import os
+        os.environ['GROQ_API_KEY'] = GROQ_API_KEY.strip()
+        groq_client = Groq()
     except Exception as e:
-        st.sidebar.error(f"❌ Lỗi Groq: {e}")
-        groq_client = None
+        try:
+            # Fallback to old initialization method
+            groq_client = Groq(api_key=GROQ_API_KEY.strip())
+        except Exception as e2:
+            st.sidebar.error(f"❌ Lỗi Groq: {e2}")
+            groq_client = None
 else:
     st.sidebar.warning("⚠️ Groq API chưa cấu hình")
 
